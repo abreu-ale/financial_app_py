@@ -176,7 +176,7 @@ def plot_monthly_income(df):
 
     fig, ax = plt.subplots(figsize=(10, 5)) # Standardized figure size
     monthly_income.plot(ax=ax, color='#4CAF50') # Changed color
-    plt.title('Evolução Mensal da Receita', fontsize=14, color='white') # Adjusted font size and color
+    plt.title('Evolução Mensal da Receita', fontsize=14, color='white') # Adjusted title color
     plt.ylabel('Valor (R$)', fontsize=10, color='white') # Adjusted font size and color
     plt.xlabel('Mês', fontsize=10, color='white') # Adjusted font size and color
     ax.yaxis.set_major_formatter(mticker.FormatStrFormatter('R$%.2f'))
@@ -327,20 +327,33 @@ def main():
             st.metric(label="Saldo Líquido", value=f"R${last_month_balance:,.2f}")
 
 
-        # Display expense summary by category for the selected month (text list)
+        # Display expense summary by category for the selected month (in boxes)
         st.subheader(f'Resumo de Despesas por Categoria ({current_month.strftime("%Y-%m")})')
-        # Use expense_distribution_filtered_df for category breakdown
         if not expense_distribution_filtered_df.empty: # Use the filtered df for distribution (bar/pie)
-             last_month_expenses_by_category = (expense_distribution_filtered_df[
+            last_month_expenses_by_category = (expense_distribution_filtered_df[
                 expense_distribution_filtered_df['AnoMes'] == current_month]
                 .groupby('Categoria')['Valor']
                 .sum()
                 .sort_values(ascending=False)
             )
-             if not last_month_expenses_by_category.empty:
-                for category, value in last_month_expenses_by_category.items():
-                    st.write(f"- {category}: R${value:,.2f}")
-             else:
+            if not last_month_expenses_by_category.empty:
+                # Create columns for each category
+                # Determine number of columns based on number of categories, max 4 per row
+                num_categories = len(last_month_expenses_by_category)
+                num_cols = min(num_categories, 4)
+                cols = st.columns(num_cols)
+
+                for i, (category, value) in enumerate(last_month_expenses_by_category.items()):
+                    with cols[i % num_cols]: # Use modulo to wrap around columns
+                        # Use markdown to create a box-like appearance
+                        st.markdown(f"""
+                            <div style="border: 1px solid #ccc; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                                <h5 style="color: white; margin-bottom: 0px;">{category}</h5>
+                                <p style="color: orange; font-size: 1.1em; margin-top: 5px;">R${value:,.2f}</p>
+                            </div>
+                        """, unsafe_allow_html=True)
+
+            else:
                 st.write("Nenhuma despesa por categoria para o mês selecionado.")
         else:
             st.write("Nenhum dado de despesas disponível para o período ou filtros selecionados.")
@@ -382,6 +395,41 @@ def main():
         with col_metrics4:
             st.metric(label=f"Saldo Líquido ({month2_period.strftime('%Y-%m')})", value=f"R${month2_balance:,.2f}", delta=f"R${balance_change:,.2f}")
 
+        # Display expense summary by category for the selected months (in boxes)
+        st.subheader(f'Resumo de Despesas por Categoria ({month1_period.strftime("%Y-%m")} vs {month2_period.strftime("%Y-%m")})')
+        if not expense_distribution_filtered_df.empty:
+            expenses_month1 = (expense_distribution_filtered_df[expense_distribution_filtered_df['AnoMes'] == month1_period]
+                               .groupby('Categoria')['Valor'].sum())
+            expenses_month2 = (expense_distribution_filtered_df[expense_distribution_filtered_df['AnoMes'] == month2_period]
+                               .groupby('Categoria')['Valor'].sum())
+
+            # Combine categories from both months
+            all_categories_comparison = sorted(list(set(expenses_month1.index) | set(expenses_month2.index)))
+
+            if all_categories_comparison:
+                # Determine number of columns based on number of categories, max 4 per row
+                num_categories = len(all_categories_comparison)
+                num_cols = min(num_categories, 4)
+                cols_comparison = st.columns(num_cols)
+
+                for i, category in enumerate(all_categories_comparison):
+                    val1 = expenses_month1.get(category, 0)
+                    val2 = expenses_month2.get(category, 0)
+                    change = val2 - val1
+                    with cols_comparison[i % num_cols]: # Use modulo to wrap around columns
+                         st.markdown(f"""
+                            <div style="border: 1px solid #ccc; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                                <h5 style="color: white; margin-bottom: 0px;">{category}</h5>
+                                <p style="color: orange; font-size: 1.1em; margin-top: 5px;">{month1_period.strftime('%Y-%m')}: R${val1:,.2f}</p>
+                                <p style="color: orange; font-size: 1.1em; margin-top: 0px;">{month2_period.strftime('%Y-%m')}: R${val2:,.2f}</p>
+                                <p style="color: {'green' if change >= 0 else 'red'}; font-size: 1em; margin-top: 0px;">Mudança: R${change:,.2f}</p>
+                            </div>
+                        """, unsafe_allow_html=True)
+            else:
+                 st.write("Nenhuma despesa por categoria para os meses selecionados.")
+        else:
+            st.write("Nenhum dado de despesas disponível para o período ou filtros selecionados.")
+
 
     else: # Default to Period filter summary
         # Calculate changes based on the last two months in the filtered data
@@ -418,7 +466,7 @@ def main():
             st.metric(label="Saldo Líquido Último Mês", value=f"R${last_month_balance:,.2f}", delta=f"R${balance_change:,.2f}")
 
 
-        # Display expense summary by category for the last month in the filtered data (text list)
+        # Display expense summary by category for the last month in the filtered data (in boxes)
         st.subheader('Resumo de Despesas por Categoria (Último Mês do Período)')
         # Use expense_distribution_filtered_df for category breakdown
         if not expense_distribution_filtered_df.empty: # Use the filtered df for distribution (bar/pie)
@@ -433,8 +481,21 @@ def main():
                     .sort_values(ascending=False)
                 )
                 if not last_month_expenses_by_category.empty:
-                    for category, value in last_month_expenses_by_category.items():
-                        st.write(f"- {category}: R${value:,.2f}")
+                     # Determine number of columns based on number of categories, max 4 per row
+                    num_categories = len(last_month_expenses_by_category)
+                    num_cols = min(num_categories, 4)
+                    cols = st.columns(num_cols)
+
+                    for i, (category, value) in enumerate(last_month_expenses_by_category.items()):
+                        with cols[i % num_cols]: # Use modulo to wrap around columns
+                             # Use markdown to create a box-like appearance
+                            st.markdown(f"""
+                                <div style="border: 1px solid #ccc; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                                    <h5 style="color: white; margin-bottom: 0px;">{category}</h5>
+                                    <p style="color: orange; font-size: 1.1em; margin-top: 5px;">R${value:,.2f}</p>
+                                </div>
+                            """, unsafe_allow_html=True)
+
                 else:
                     st.write("Nenhuma despesa por categoria para o último mês no período selecionado.")
             else:
@@ -445,68 +506,73 @@ def main():
 
     # --- Dashboard Sections ---
 
-    st.header('Visão Geral Mensal')
-    st.markdown("Comparativo mensal entre entradas, saídas e economias, e a evolução da receita.")
-    col1, col2 = st.columns(2)
+    st.header('Visualizações Gráficas') # New header to group all charts sections
 
-    with col1:
-        st.subheader('Fluxo de Caixa Mensal')
-        fig1 = plot_monthly_cashflow(cashflow_filtered_df)
-        if fig1:
-            st.pyplot(fig1)
-            plt.close(fig1)
+    # Visão Geral Mensal Section (with expander)
+    with st.expander("Visão Geral Mensal"):
+        st.markdown("Comparativo mensal entre entradas, saídas e economias, e a evolução da receita.")
+        col1, col2 = st.columns(2)
 
-    with col2:
-        st.subheader('Evolução Mensal da Receita')
-        fig5 = plot_monthly_income(income_filtered_df)
-        if fig5:
-            st.pyplot(fig5)
-            plt.close(fig5)
+        with col1:
+            st.subheader('Fluxo de Caixa Mensal')
+            fig1 = plot_monthly_cashflow(cashflow_filtered_df)
+            if fig1:
+                st.pyplot(fig1)
+                plt.close(fig1)
 
-    st.header('Análise de Despesas por Categoria') # Adjusted title
-    st.markdown("Distribuição das despesas por categoria em valores e percentual para o período selecionado.") # Adjusted markdown
-    col3, col4 = st.columns(2)
+        with col2:
+            st.subheader('Evolução Mensal da Receita')
+            fig5 = plot_monthly_income(income_filtered_df)
+            if fig5:
+                st.pyplot(fig5)
+                plt.close(fig5)
 
-    with col3:
-        st.subheader('Despesas por Categoria (Valores)') # Title for bar chart
-        fig_bar_dist = plot_expense_distribution_bar(expense_distribution_filtered_df)
-        if fig_bar_dist:
-            st.pyplot(fig_bar_dist)
-            plt.close(fig_bar_dist)
+    # Análise de Despesas por Categoria Section (with expander)
+    with st.expander("Análise de Despesas por Categoria"):
+        st.markdown("Distribuição das despesas por categoria em valores e percentual para o período selecionado.")
+        col3, col4 = st.columns(2)
 
-    with col4:
-        st.subheader('Despesas por Categoria (Percentual)') # Title for pie chart
-        fig_pie_dist = plot_expense_distribution_pie(expense_distribution_filtered_df)
-        if fig_pie_dist:
-            st.pyplot(fig_pie_dist)
-            plt.close(fig_pie_dist)
+        with col3:
+            st.subheader('Despesas por Categoria (Valores)')
+            fig_bar_dist = plot_expense_distribution_bar(expense_distribution_filtered_df)
+            if fig_bar_dist:
+                st.pyplot(fig_bar_dist)
+                plt.close(fig_bar_dist)
+
+        with col4:
+            st.subheader('Despesas por Categoria (Percentual)')
+            fig_pie_dist = plot_expense_distribution_pie(expense_distribution_filtered_df)
+            if fig_pie_dist:
+                st.pyplot(fig_pie_dist)
+                plt.close(fig_pie_dist)
 
 
-    st.header('Evolução ao Longo do Tempo') # New section title
-    st.markdown("Visualização do saldo acumulado, a evolução mensal das despesas por categoria e a evolução das economias ao longo do período selecionado.") # Adjusted markdown
-    col5, col6 = st.columns(2) # Use new columns for detailed evolution
+    # Evolução ao Longo do Tempo Section (with expander)
+    with st.expander("Evolução ao Longo do Tempo"):
+        st.markdown("Visualização do saldo acumulado, a evolução mensal das despesas por categoria e a evolução das economias ao longo do período selecionado.")
+        col5, col6 = st.columns(2) # Use new columns for detailed evolution
 
-    with col5:
-        st.subheader('Saldo Líquido Acumulado') # Shortened title
-        fig2 = plot_cumulative_balance(cumulative_balance_filtered_df)
-        if fig2:
-            st.pyplot(fig2)
-            plt.close(fig2)
+        with col5:
+            st.subheader('Saldo Líquido Acumulado') # Shortened title
+            fig2 = plot_cumulative_balance(cumulative_balance_filtered_df)
+            if fig2:
+                st.pyplot(fig2)
+                plt.close(fig2)
 
-    with col6:
-         st.subheader('Economias Acumuladas') # Shortened title
-         fig_savings = plot_cumulative_savings(cumulative_savings_filtered_df)
-         if fig_savings:
-             st.pyplot(fig_savings)
-             plt.close(fig_savings)
+        with col6:
+             st.subheader('Economias Acumuladas') # Shortened title
+             fig_savings = plot_cumulative_savings(cumulative_savings_filtered_df)
+             if fig_savings:
+                 st.pyplot(fig_savings)
+                 plt.close(fig_savings)
 
-    st.subheader('Evolução Mensal das Despesas por Categoria') # This chart is for evolution over time
-    fig4 = plot_monthly_category_expenses(monthly_category_expense_filtered_df)
-    if fig4:
-        st.pyplot(fig4)
-        plt.close(fig4)
+        st.subheader('Evolução Mensal das Despesas por Categoria')
+        fig4 = plot_monthly_category_expenses(monthly_category_expense_filtered_df)
+        if fig4:
+            st.pyplot(fig4)
+            plt.close(fig4)
 
-    # Add section for raw expense data table
+    # Add section for raw expense data table (already in expander)
     st.header('Dados de Despesas Detalhados')
     st.markdown("Visualização em tabela das despesas do período selecionado.")
 
