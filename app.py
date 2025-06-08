@@ -26,7 +26,7 @@ def plot_monthly_cashflow(df):
                  .sum()
                  .unstack(fill_value=0))
 
-    fig, ax = plt.subplots(figsize=(10, 5)) # Adjusted figure size
+    fig, ax = plt.subplots(figsize=(10, 5)) # Standardized figure size
     # Ensure all three columns exist before plotting, provide default 0 if not
     plot_data = monthly[['Income', 'Expense', 'Savings']].fillna(0) if all(col in monthly.columns for col in ['Income', 'Expense', 'Savings']) else monthly[['Income', 'Expense']].fillna(0)
 
@@ -56,7 +56,7 @@ def plot_cumulative_balance(df):
         st.warning("Nenhum dado de saldo disponível para o período selecionado.")
         return None
 
-    fig, ax = plt.subplots(figsize=(10, 5)) # Adjusted figure size
+    fig, ax = plt.subplots(figsize=(10, 5)) # Standardized figure size
     saldo.plot(ax=ax, color='#2196F3') # Added color
     plt.title('Saldo Líquido Acumulado ao Longo do Tempo', fontsize=14, color='white') # Adjusted title color
     plt.ylabel('Saldo (R$)', fontsize=10, color='white') # Adjusted font size and color
@@ -84,7 +84,7 @@ def plot_expense_distribution_pie(df):
     # Sort values for better visualization
     gastos_por_categoria = gastos_por_categoria.sort_values(ascending=False)
 
-    fig, ax = plt.subplots(figsize=(8, 8)) # Adjusted figure size for pie chart
+    fig, ax = plt.subplots(figsize=(6, 6)) # Reduced figure size for pie chart
     # Plot pie chart
     wedges, texts, autotexts = ax.pie(gastos_por_categoria,
                                       labels=gastos_por_categoria.index,
@@ -93,13 +93,41 @@ def plot_expense_distribution_pie(df):
                                       colors=plt.cm.viridis(gastos_por_categoria / gastos_por_categoria.max())) # Use a color map
 
 
-    plt.title('Distribuição de Despesas por Categoria (Total)', fontsize=14, color='white') # Adjusted font size and color
+    plt.title('Distribuição de Despesas por Categoria (Percentual)', fontsize=14, color='white') # Adjusted font size and color
     plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
     plt.tight_layout()
     return fig
 
+# Function to plot expense distribution by category (Bar Chart - total values)
+def plot_expense_distribution_bar(df):
+    # Ensure the dataframe has 'Tipo', 'Categoria', and 'Valor' columns and contains expenses
+    if 'Tipo' not in df.columns or 'Categoria' not in df.columns or 'Valor' not in df.columns or df[df['Tipo'] == 'Expense'].empty:
+        st.warning("Dados de despesas insuficientes para plotar a distribuição por categoria.")
+        return None
 
-# Function to plot monthly expense evolution by category
+    gastos = (df[df['Tipo']=='Expense']
+              .groupby('Categoria')['Valor']
+              .sum()
+              .sort_values(ascending=False))
+
+    # Handle cases where gastos might be empty after filtering
+    if gastos.empty:
+        st.warning("Nenhum dado de despesas por categoria disponível para os filtros selecionados.")
+        return None
+
+
+    fig, ax = plt.subplots(figsize=(10, 6)) # Standardized figure size
+    gastos.plot(kind='barh', ax=ax, color='#FFB74D') # Changed color
+    plt.title('Distribuição de Despesas por Categoria (Valores)', fontsize=14, color='white') # Adjusted font size and color
+    plt.xlabel('Valor (R$)', fontsize=10, color='white') # Adjusted font size and color
+    plt.ylabel('Categoria', fontsize=10, color='white') # Adjusted font size and color
+    ax.xaxis.set_major_formatter(mticker.FormatStrFormatter('R$%.2f'))
+    plt.grid(axis='x', linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    return fig
+
+
+# Function to plot monthly expense evolution by category (Bar Chart)
 def plot_monthly_category_expenses(df):
     # Ensure the dataframe has 'Tipo', 'AnoMes', 'Categoria', and 'Valor' columns and contains expenses
     if 'Tipo' not in df.columns or 'AnoMes' not in df.columns or 'Categoria' not in df.columns or 'Valor' not in df.columns or df[df['Tipo'] == 'Expense'].empty:
@@ -117,7 +145,7 @@ def plot_monthly_category_expenses(df):
          return None
 
 
-    fig, ax = plt.subplots(figsize=(12, 6)) # Adjusted figure size
+    fig, ax = plt.subplots(figsize=(12, 6)) # Standardized figure size
     monthly_category_expenses.plot(kind='bar', stacked=True, ax=ax, cmap='tab20') # Changed color map
     plt.title('Evolução Mensal das Despesas por Categoria', fontsize=14, color='white') # Adjusted font size and color
     plt.ylabel('Valor (R$)', fontsize=10, color='white') # Adjusted font size and color
@@ -146,47 +174,12 @@ def plot_monthly_income(df):
         return None
 
 
-    fig, ax = plt.subplots(figsize=(10, 5)) # Adjusted figure size
+    fig, ax = plt.subplots(figsize=(10, 5)) # Standardized figure size
     monthly_income.plot(ax=ax, color='#4CAF50') # Changed color
     plt.title('Evolução Mensal da Receita', fontsize=14, color='white') # Adjusted font size and color
     plt.ylabel('Valor (R$)', fontsize=10, color='white') # Adjusted font size and color
     plt.xlabel('Mês', fontsize=10, color='white') # Adjusted font size and color
     ax.yaxis.set_major_formatter(mticker.FormatStrFormatter('R$%.2f'))
-    plt.grid(True, linestyle='--', alpha=0.7)
-    plt.tight_layout()
-    return fig
-
-# Function to plot percentage of recurring expenses
-def plot_percentage_recurring_expenses(df):
-    # Ensure the dataframe has relevant columns and contains both recurring and total expenses
-    if 'Recorrente' not in df.columns or 'Tipo' not in df.columns or 'AnoMes' not in df.columns or 'Valor' not in df.columns or df[df['Tipo'] == 'Expense'].empty:
-         st.warning("Dados de despesas recorrentes ou totais insuficientes para calcular o percentual.")
-         return None
-
-    recurring_expenses_df = df[df['Recorrente'] == 'y']
-    monthly_recurring_expenses = recurring_expenses_df.groupby('AnoMes')['Valor'].sum()
-    monthly_total_expenses = df[df['Tipo'] == 'Expense'].groupby('AnoMes')['Valor'].sum()
-
-    # Handle potential division by zero or empty data after filtering
-    if monthly_total_expenses.empty:
-        st.warning("Nenhum dado de despesas totais mensais disponível para os filtros selecionados.")
-        return None
-
-    percentage_recurring_expenses = (monthly_recurring_expenses / monthly_total_expenses).fillna(0) * 100
-
-    # Handle cases where percentage_recurring_expenses might be empty
-    if percentage_recurring_expenses.empty:
-        st.warning("Nenhum dado de percentual de despesas recorrentes disponível para os filtros selecionados.")
-        return None
-
-
-    fig, ax = plt.subplots(figsize=(10, 5)) # Adjusted figure size
-    percentage_recurring_expenses.plot(ax=ax, color='#E57373') # Changed color
-    plt.title('Percentual de Despesas Recorrentes Mensais', fontsize=14, color='white') # Adjusted font size and color
-    plt.ylabel('Percentual (%)', fontsize=10, color='white') # Adjusted font size and color
-    plt.xlabel('Mês', fontsize=10, color='white') # Adjusted font size and color
-    ax.yaxis.set_major_formatter(mticker.PercentFormatter()) # Corrected formatter
-    plt.xticks(rotation=45, ha='right', fontsize=8) # Adjusted font size
     plt.grid(True, linestyle='--', alpha=0.7)
     plt.tight_layout()
     return fig
@@ -210,7 +203,7 @@ def plot_cumulative_savings(df):
         st.warning("Nenhum dado de economias acumuladas disponível para o período selecionado.")
         return None
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(10, 5)) # Standardized figure size
     cumulative_savings.plot(ax=ax, color='#2196F3') # Using a distinct color for savings
     plt.title('Economias Acumuladas ao Longo do Tempo', fontsize=14, color='white') # Adjusted title color
     plt.ylabel('Economias (R$)', fontsize=10, color='white') # Adjusted font size and color
@@ -297,12 +290,12 @@ def main():
             cumulative_balance_filtered_df.apply(lambda x: x['Tipo'] == 'Income' or (x['Tipo'] in ['Expense', 'Savings'] and x['Categoria'].isin(selected_categories)), axis=1)
         ]
 
-    # Distribuição de Despesas por Categoria: Should be affected by both date and category filters (only expenses)
+    # Distribuição de Despesas por Categoria (for Pie Chart and Bar Chart): Should be affected by both date and category filters (only expenses)
     expense_distribution_filtered_df = date_filtered_df[date_filtered_df['Tipo'] == 'Expense'].copy()
     if 'All' not in selected_categories:
         expense_distribution_filtered_df = expense_distribution_filtered_df[expense_distribution_filtered_df['Categoria'].isin(selected_categories)]
 
-    # Evolução Mensal das Despesas por Categoria: Should be affected by both date and category filters (only expenses)
+    # Evolução Mensal das Despesas por Categoria (for Monthly Evolution Bar Chart): Should be affected by both date and category filters (only expenses)
     monthly_category_expense_filtered_df = date_filtered_df[date_filtered_df['Tipo'] == 'Expense'].copy()
     if 'All' not in selected_categories:
          monthly_category_expense_filtered_df = monthly_category_expense_filtered_df[monthly_category_expense_filtered_df['Categoria'].isin(selected_categories)]
@@ -311,17 +304,10 @@ def main():
     income_filtered_df = date_filtered_df[date_filtered_df['Tipo'] == 'Income'].copy() # Filter only Income
     # No category filter applied here
 
-    # Percentual de Despesas Recorrentes Mensais: Should be affected by both date and category filters (recurring expenses vs total expenses within selected categories)
-    recurring_percentage_filtered_df = date_filtered_df[date_filtered_df['Tipo'] == 'Expense'].copy() # Only consider expenses
-    if 'All' not in selected_categories:
-        # Apply category filter only to expenses
-        recurring_percentage_filtered_df = recurring_percentage_filtered_df[recurring_percentage_filtered_df['Categoria'].isin(selected_categories)]
-
     # Cumulative Savings: Should be affected by both date and category filters (only savings)
     cumulative_savings_filtered_df = date_filtered_df[date_filtered_df['Tipo'] == 'Savings'].copy()
     if 'All' not in selected_categories:
          cumulative_savings_filtered_df = cumulative_savings_filtered_df[cumulative_savings_filtered_df['Categoria'].isin(selected_categories)]
-
 
     # Calculate monthly summaries and changes within the main function
     # Expenses should NOT include Savings
@@ -371,7 +357,7 @@ def main():
         # Display expense summary by category for the selected month
         st.subheader(f'Resumo de Despesas por Categoria ({current_month.strftime("%Y-%m")})')
         # Use expense_distribution_filtered_df for category breakdown
-        if not expense_distribution_filtered_df.empty:
+        if not expense_distribution_filtered_df.empty: # Use the filtered df for distribution (bar/pie)
              last_month_expenses_by_category = (expense_distribution_filtered_df[
                 expense_distribution_filtered_df['AnoMes'] == current_month]
                 .groupby('Categoria')['Valor']
@@ -462,7 +448,7 @@ def main():
         # Display expense summary by category for the last month in the filtered data
         st.subheader('Resumo de Despesas por Categoria (Último Mês do Período)')
         # Use expense_distribution_filtered_df for category breakdown
-        if not expense_distribution_filtered_df.empty:
+        if not expense_distribution_filtered_df.empty: # Use the filtered df for distribution (bar/pie)
             # Get the last month from the filtered data for expense distribution
             last_month_anomes = expense_distribution_filtered_df['AnoMes'].max() if not expense_distribution_filtered_df['AnoMes'].empty else None
 
@@ -504,46 +490,60 @@ def main():
             plt.close(fig5)
 
     st.header('Análise de Despesas e Economias') # Adjusted title
-    st.markdown("Distribuição das despesas por categoria, percentual de despesas recorrentes e evolução das economias.") # Adjusted markdown
+    st.markdown("Distribuição das despesas por categoria em valores e percentual.") # Adjusted markdown
     col3, col4 = st.columns(2)
 
     with col3:
-        st.subheader('Distribuição de Despesas por Categoria')
-        # Use the pie chart function
-        fig3 = plot_expense_distribution_pie(expense_distribution_filtered_df)
-        if fig3: # Check if plot was generated
-            st.pyplot(fig3)
-            plt.close(fig3)
+        st.subheader('Distribuição de Despesas por Categoria (Valores)') # Title for bar chart
+        # Use the bar chart function for expense distribution
+        fig_bar_dist = plot_expense_distribution_bar(expense_distribution_filtered_df) # Use the correct filtered df
+        if fig_bar_dist: # Check if plot was generated
+            st.pyplot(fig_bar_dist)
+            plt.close(fig_bar_dist)
 
     with col4:
-        st.subheader('Percentual de Despesas Recorrentes')
-        fig6 = plot_percentage_recurring_expenses(recurring_percentage_filtered_df)
-        if fig6: # Check if plot was generated
-            st.pyplot(fig6)
-            plt.close(fig6)
+        st.subheader('Distribuição de Despesas por Categoria (Percentual)') # Title for pie chart
+        # Use the pie chart function
+        fig_pie_dist = plot_expense_distribution_pie(expense_distribution_filtered_df) # Use the correct filtered df
+        if fig_pie_dist: # Check if plot was generated
+            st.pyplot(fig_pie_dist)
+            plt.close(fig_pie_dist)
+
+    # Removed the Percentual de Despesas Recorrentes plot as requested
+    # st.header('Análise de Despesas Recorrentes') # New section for recurring?
+    # st.markdown("Percentual de despesas recorrentes mensais.")
+    # st.subheader('Percentual de Despesas Recorrentes')
+    # fig6 = plot_percentage_recurring_expenses(recurring_percentage_filtered_df)
+    # if fig6: # Check if plot was generated
+    #     st.pyplot(fig6)
+    #     plt.close(fig6)
 
 
     st.header('Evolução Detalhada')
-    st.markdown("Visualização do saldo acumulado e a evolução mensal das despesas por categoria.")
-    st.subheader('Saldo Líquido Acumulado ao Longo do Tempo')
-    fig2 = plot_cumulative_balance(cumulative_balance_filtered_df)
-    if fig2: # Check if plot was generated
-        st.pyplot(fig2)
-        plt.close(fig2)
+    st.markdown("Visualização do saldo acumulado, a evolução mensal das despesas por categoria e a evolução das economias.") # Adjusted markdown
+    col5, col6 = st.columns(2) # Use new columns for detailed evolution
 
-    st.subheader('Evolução Mensal das Despesas por Categoria')
+    with col5:
+        st.subheader('Saldo Líquido Acumulado ao Longo do Tempo')
+        fig2 = plot_cumulative_balance(cumulative_balance_filtered_df)
+        if fig2: # Check if plot was generated
+            st.pyplot(fig2)
+            plt.close(fig2)
+
+    with col6:
+         st.subheader('Economias Acumuladas ao Longo do Tempo') # Add Cumulative Savings plot
+         fig_savings = plot_cumulative_savings(cumulative_savings_filtered_df) # Use the correctly filtered df
+         if fig_savings: # Check if plot was generated
+             st.pyplot(fig_savings)
+             plt.close(fig_savings)
+
+
+    st.subheader('Evolução Mensal das Despesas por Categoria') # This chart is for evolution over time
     # Corrected dataframe name
     fig4 = plot_monthly_category_expenses(monthly_category_expense_filtered_df)
     if fig4: # Check if plot was generated
         st.pyplot(fig4)
         plt.close(fig4)
-
-    # Add Cumulative Savings plot
-    st.subheader('Economias Acumuladas ao Longo do Tempo')
-    fig_savings = plot_cumulative_savings(cumulative_savings_filtered_df) # Use the correctly filtered df
-    if fig_savings: # Check if plot was generated
-        st.pyplot(fig_savings)
-        plt.close(fig_savings)
 
 
 if __name__ == '__main__':
