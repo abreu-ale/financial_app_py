@@ -233,7 +233,7 @@ def main():
 
     # Sidebar filters
     st.sidebar.header('Filtros')
-    st.sidebar.markdown("Utilize os filtros abaixo para selecionar o período e as categorias de interesse.")
+    st.sidebar.markdown("Utilize os filtros abaixo para selecionar o período de interesse.")
 
     filter_type = st.sidebar.radio("Selecionar Tipo de Filtro de Data:",
                                    ('Período', 'Mês Específico', 'Comparar 2 Meses'))
@@ -268,46 +268,19 @@ def main():
             date_filtered_df = date_filtered_df[date_filtered_df['AnoMes_dt'].isin([month1, month2])]
             selected_months = [pd.Period(month1, 'M'), pd.Period(month2, 'M')]
 
-    all_categories = ['All'] + sorted(df['Categoria'].unique().tolist())
-    selected_categories = st.sidebar.multiselect('Selecionar Categoria', all_categories, default='All')
+    # Category filter removed as requested
+    # all_categories = ['All'] + sorted(df['Categoria'].unique().tolist())
+    # selected_categories = st.sidebar.multiselect('Selecionar Categoria', all_categories, default='All')
 
 
-    # Create dataframes filtered by category where relevant
-    # Fluxo de Caixa Mensal: Should be affected by both date and category filters (income, expenses, and savings)
+    # Create dataframes filtered ONLY by date (category filter removed)
     cashflow_filtered_df = date_filtered_df.copy()
-    if 'All' not in selected_categories:
-        # Apply category filter to Expense and Savings, but include all Income
-        cashflow_filtered_df = cashflow_filtered_df[
-            cashflow_filtered_df.apply(lambda x: x['Tipo'] == 'Income' or (x['Tipo'] in ['Expense', 'Savings'] and x['Categoria'].isin(selected_categories)), axis=1)
-        ]
-
-
-    # Saldo Líquido Acumulado: Should be affected by both date and category filters (income, expenses, and savings)
     cumulative_balance_filtered_df = date_filtered_df.copy()
-    if 'All' not in selected_categories:
-         # Apply category filter to Expense and Savings, but include all Income
-        cumulative_balance_filtered_df = cumulative_balance_filtered_df[
-            cumulative_balance_filtered_df.apply(lambda x: x['Tipo'] == 'Income' or (x['Tipo'] in ['Expense', 'Savings'] and x['Categoria'].isin(selected_categories)), axis=1)
-        ]
-
-    # Distribuição de Despesas por Categoria (for Pie Chart and Bar Chart): Should be affected by both date and category filters (only expenses)
-    expense_distribution_filtered_df = date_filtered_df[date_filtered_df['Tipo'] == 'Expense'].copy()
-    if 'All' not in selected_categories:
-        expense_distribution_filtered_df = expense_distribution_filtered_df[expense_distribution_filtered_df['Categoria'].isin(selected_categories)]
-
-    # Evolução Mensal das Despesas por Categoria (for Monthly Evolution Bar Chart): Should be affected by both date and category filters (only expenses)
-    monthly_category_expense_filtered_df = date_filtered_df[date_filtered_df['Tipo'] == 'Expense'].copy()
-    if 'All' not in selected_categories:
-         monthly_category_expense_filtered_df = monthly_category_expense_filtered_df[monthly_category_expense_filtered_df['Categoria'].isin(selected_categories)]
-
-    # Evolução Mensal da Receita: Should only be affected by the date filter (category filter is not relevant to income)
+    expense_distribution_filtered_df = date_filtered_df[date_filtered_df['Tipo'] == 'Expense'].copy() # Filter only expenses
+    monthly_category_expense_filtered_df = date_filtered_df[date_filtered_df['Tipo'] == 'Expense'].copy() # Filter only expenses
     income_filtered_df = date_filtered_df[date_filtered_df['Tipo'] == 'Income'].copy() # Filter only Income
-    # No category filter applied here
+    cumulative_savings_filtered_df = date_filtered_df[date_filtered_df['Tipo'] == 'Savings'].copy() # Filter only Savings
 
-    # Cumulative Savings: Should be affected by both date and category filters (only savings)
-    cumulative_savings_filtered_df = date_filtered_df[date_filtered_df['Tipo'] == 'Savings'].copy()
-    if 'All' not in selected_categories:
-         cumulative_savings_filtered_df = cumulative_savings_filtered_df[cumulative_savings_filtered_df['Categoria'].isin(selected_categories)]
 
     # Calculate monthly summaries and changes within the main function
     # Expenses should NOT include Savings
@@ -354,7 +327,7 @@ def main():
             st.metric(label="Saldo Líquido", value=f"R${last_month_balance:,.2f}")
 
 
-        # Display expense summary by category for the selected month
+        # Display expense summary by category for the selected month (text list)
         st.subheader(f'Resumo de Despesas por Categoria ({current_month.strftime("%Y-%m")})')
         # Use expense_distribution_filtered_df for category breakdown
         if not expense_distribution_filtered_df.empty: # Use the filtered df for distribution (bar/pie)
@@ -445,7 +418,7 @@ def main():
             st.metric(label="Saldo Líquido Último Mês", value=f"R${last_month_balance:,.2f}", delta=f"R${balance_change:,.2f}")
 
 
-        # Display expense summary by category for the last month in the filtered data
+        # Display expense summary by category for the last month in the filtered data (text list)
         st.subheader('Resumo de Despesas por Categoria (Último Mês do Período)')
         # Use expense_distribution_filtered_df for category breakdown
         if not expense_distribution_filtered_df.empty: # Use the filtered df for distribution (bar/pie)
@@ -470,80 +443,84 @@ def main():
             st.write("Nenhum dado de despesas disponível para o período ou filtros selecionados.")
 
 
-    # Display plots using columns and containers for better layout
+    # --- Dashboard Sections ---
+
     st.header('Visão Geral Mensal')
-    st.markdown("Comparativo mensal entre entradas, saídas e economias, e a evolução da receita.") # Adjusted markdown
+    st.markdown("Comparativo mensal entre entradas, saídas e economias, e a evolução da receita.")
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader('Fluxo de Caixa Mensal')
         fig1 = plot_monthly_cashflow(cashflow_filtered_df)
-        if fig1: # Check if plot was generated
+        if fig1:
             st.pyplot(fig1)
             plt.close(fig1)
 
     with col2:
         st.subheader('Evolução Mensal da Receita')
         fig5 = plot_monthly_income(income_filtered_df)
-        if fig5: # Check if plot was generated
+        if fig5:
             st.pyplot(fig5)
             plt.close(fig5)
 
-    st.header('Análise de Despesas e Economias') # Adjusted title
-    st.markdown("Distribuição das despesas por categoria em valores e percentual.") # Adjusted markdown
+    st.header('Análise de Despesas por Categoria') # Adjusted title
+    st.markdown("Distribuição das despesas por categoria em valores e percentual para o período selecionado.") # Adjusted markdown
     col3, col4 = st.columns(2)
 
     with col3:
-        st.subheader('Distribuição de Despesas por Categoria (Valores)') # Title for bar chart
-        # Use the bar chart function for expense distribution
-        fig_bar_dist = plot_expense_distribution_bar(expense_distribution_filtered_df) # Use the correct filtered df
-        if fig_bar_dist: # Check if plot was generated
+        st.subheader('Despesas por Categoria (Valores)') # Title for bar chart
+        fig_bar_dist = plot_expense_distribution_bar(expense_distribution_filtered_df)
+        if fig_bar_dist:
             st.pyplot(fig_bar_dist)
             plt.close(fig_bar_dist)
 
     with col4:
-        st.subheader('Distribuição de Despesas por Categoria (Percentual)') # Title for pie chart
-        # Use the pie chart function
-        fig_pie_dist = plot_expense_distribution_pie(expense_distribution_filtered_df) # Use the correct filtered df
-        if fig_pie_dist: # Check if plot was generated
+        st.subheader('Despesas por Categoria (Percentual)') # Title for pie chart
+        fig_pie_dist = plot_expense_distribution_pie(expense_distribution_filtered_df)
+        if fig_pie_dist:
             st.pyplot(fig_pie_dist)
             plt.close(fig_pie_dist)
 
-    # Removed the Percentual de Despesas Recorrentes plot as requested
-    # st.header('Análise de Despesas Recorrentes') # New section for recurring?
-    # st.markdown("Percentual de despesas recorrentes mensais.")
-    # st.subheader('Percentual de Despesas Recorrentes')
-    # fig6 = plot_percentage_recurring_expenses(recurring_percentage_filtered_df)
-    # if fig6: # Check if plot was generated
-    #     st.pyplot(fig6)
-    #     plt.close(fig6)
 
-
-    st.header('Evolução Detalhada')
-    st.markdown("Visualização do saldo acumulado, a evolução mensal das despesas por categoria e a evolução das economias.") # Adjusted markdown
+    st.header('Evolução ao Longo do Tempo') # New section title
+    st.markdown("Visualização do saldo acumulado, a evolução mensal das despesas por categoria e a evolução das economias ao longo do período selecionado.") # Adjusted markdown
     col5, col6 = st.columns(2) # Use new columns for detailed evolution
 
     with col5:
-        st.subheader('Saldo Líquido Acumulado ao Longo do Tempo')
+        st.subheader('Saldo Líquido Acumulado') # Shortened title
         fig2 = plot_cumulative_balance(cumulative_balance_filtered_df)
-        if fig2: # Check if plot was generated
+        if fig2:
             st.pyplot(fig2)
             plt.close(fig2)
 
     with col6:
-         st.subheader('Economias Acumuladas ao Longo do Tempo') # Add Cumulative Savings plot
-         fig_savings = plot_cumulative_savings(cumulative_savings_filtered_df) # Use the correctly filtered df
-         if fig_savings: # Check if plot was generated
+         st.subheader('Economias Acumuladas') # Shortened title
+         fig_savings = plot_cumulative_savings(cumulative_savings_filtered_df)
+         if fig_savings:
              st.pyplot(fig_savings)
              plt.close(fig_savings)
 
-
     st.subheader('Evolução Mensal das Despesas por Categoria') # This chart is for evolution over time
-    # Corrected dataframe name
     fig4 = plot_monthly_category_expenses(monthly_category_expense_filtered_df)
-    if fig4: # Check if plot was generated
+    if fig4:
         st.pyplot(fig4)
         plt.close(fig4)
+
+    # Add section for raw expense data table
+    st.header('Dados de Despesas Detalhados')
+    st.markdown("Visualização em tabela das despesas do período selecionado.")
+
+    # Filter dataframe to show only Expense type for the table
+    expense_data_for_table = date_filtered_df[date_filtered_df['Tipo'] == 'Expense'].copy()
+
+    if not expense_data_for_table.empty:
+        # Use st.expander to show/hide the table
+        with st.expander("Ver Tabela de Despesas"):
+            # Select relevant columns for display in the table
+            table_cols = ['Data', 'Descrição', 'Categoria', 'Valor', 'Recorrente']
+            st.dataframe(expense_data_for_table[table_cols].reset_index(drop=True))
+    else:
+        st.info("Nenhum dado de despesa disponível para o período selecionado.")
 
 
 if __name__ == '__main__':
