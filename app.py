@@ -236,10 +236,12 @@ def main():
     st.sidebar.markdown("Utilize os filtros abaixo para selecionar o período de interesse.")
 
     filter_type = st.sidebar.radio("Selecionar Tipo de Filtro de Data:",
-                                   ('Período', 'Mês Específico', 'Comparar 2 Meses'))
-
+                               ('Período', 'Mês Específico', 'Comparar 2 Meses', 'Dia Atual'))
+    
     date_filtered_df = df.copy()
     selected_months = []
+    month1 = None
+    month2 = None
 
     if filter_type == 'Período':
         min_date = df['Data'].min().date()
@@ -253,7 +255,7 @@ def main():
 
     elif filter_type == 'Mês Específico':
         unique_months = sorted(df['AnoMes_dt'].unique())
-        selected_month = st.sidebar.selectbox('Selecionar Mês', unique_months, format_func=lambda x: x.strftime('%Y-%m'))
+        selected_month = st.sidebar.radio('Selecionar Mês', unique_months, format_func=lambda x: x.strftime('%Y-%m'))
 
         if selected_month:
             date_filtered_df = date_filtered_df[date_filtered_df['AnoMes_dt'] == selected_month]
@@ -263,6 +265,13 @@ def main():
         unique_months = sorted(df['AnoMes_dt'].unique())
         month1 = st.sidebar.selectbox('Selecionar Primeiro Mês', unique_months, index=len(unique_months)-1 if len(unique_months) > 0 else 0, format_func=lambda x: x.strftime('%Y-%m'))
         month2 = st.sidebar.selectbox('Selecionar Segundo Mês', unique_months, index=len(unique_months)-2 if len(unique_months) > 1 else 0, format_func=lambda x: x.strftime('%Y-%m'))
+
+    elif filter_type == 'Dia Atual':
+        today = date.today()
+        date_filtered_df = date_filtered_df[date_filtered_df['Data'].dt.date == today]
+    
+        # Exibir informação do dia selecionado
+        st.sidebar.info(f"Consultando dados de: {today.strftime('%d/%m/%Y')}")
 
         if month1 and month2:
             date_filtered_df = date_filtered_df[date_filtered_df['AnoMes_dt'].isin([month1, month2])]
